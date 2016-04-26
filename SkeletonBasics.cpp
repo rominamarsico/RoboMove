@@ -25,6 +25,7 @@ public:
 
 	int connect();
 	int connect(wchar_t *COM17);
+	int connect2(wchar_t*COM21);
 	//int connect (char *deviceName, int baudRate, SerialParity parity);
 	void disconnect(void);
 
@@ -47,6 +48,7 @@ SerialPort::~SerialPort() {
 
 int SerialPort::connect() {
 	return connect(L"COM17");
+	return connect2(L"COM21");
 }
 
 int SerialPort::connect(wchar_t* device) {
@@ -117,7 +119,7 @@ void SerialPort::clear() {
 
 
 SerialPort port1;
-//SerialPort port2;
+SerialPort port2;
 
 
 /// <summary>
@@ -131,7 +133,7 @@ SerialPort port1;
 int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdLine, int nCmdShow)
 {
 	port1.connect(L"\\\\.\\COM17");
-	// port2.connect(L"\\\\.\\COM20");
+	port2.connect2(L"\\\\.\\COM21");
 
 	CSkeletonBasics application;
     application.Run(hInstance, nCmdShow);
@@ -463,6 +465,7 @@ void CSkeletonBasics::ProcessSkeleton()
 
 				unsigned char berndmessage[] = "d";
 				port1.sendArray(berndmessage, 1);
+				port2.sendArray(berndmessage,1);
 			}
 
 			if ((skeletonFrame.SkeletonData[i].SkeletonPositions[NUI_SKELETON_POSITION_HAND_LEFT].y > skeletonFrame.SkeletonData[i].SkeletonPositions[NUI_SKELETON_POSITION_SHOULDER_LEFT].y) &&
@@ -474,6 +477,7 @@ void CSkeletonBasics::ProcessSkeleton()
 
 				unsigned char berndmessage[] = "a";
 				port1.sendArray(berndmessage, 1);
+				port2.sendArray(berndmessage,1);
 
 			}
 
@@ -488,6 +492,7 @@ void CSkeletonBasics::ProcessSkeleton()
 
 				unsigned char berndmessage[] = "w";
 				port1.sendArray(berndmessage, 1);
+				port2.sendArray(berndmessage,1);
 			}
 
 			if ((skeletonFrame.SkeletonData[i].SkeletonPositions[NUI_SKELETON_POSITION_HAND_LEFT].y < skeletonFrame.SkeletonData[i].SkeletonPositions[NUI_SKELETON_POSITION_KNEE_LEFT].y) &&
@@ -499,6 +504,7 @@ void CSkeletonBasics::ProcessSkeleton()
 
 				unsigned char berndmessage[] = "s";
 				port1.sendArray(berndmessage, 1);
+				port2.sendArray(berndmessage,1);
 			}
 
 			if ((skeletonFrame.SkeletonData[i].SkeletonPositions[NUI_SKELETON_POSITION_HAND_LEFT].y > skeletonFrame.SkeletonData[i].SkeletonPositions[NUI_SKELETON_POSITION_KNEE_LEFT].y) &&
@@ -512,6 +518,7 @@ void CSkeletonBasics::ProcessSkeleton()
 
 				unsigned char berndmessage[] = "p";
 				port1.sendArray(berndmessage, 1);
+				port2.sendArray(berndmessage,1);
 			}
 
         }

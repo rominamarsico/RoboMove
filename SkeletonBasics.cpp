@@ -8,10 +8,20 @@
 #include <strsafe.h>
 #include "SkeletonBasics.h"
 #include "resource.h"
+#include <NuiSensor.h>	//neu
+#include <NuiApi.h>	//neu
+#include <NuiSkeleton.h> //neu
+#include <NuiImageCamera.h> //neu
 
 static const float g_JointThickness = 3.0f;
 static const float g_TrackedBoneThickness = 6.0f;
 static const float g_InferredBoneThickness = 1.0f;
+
+int player1;
+int player2;
+int keksdose = 1;
+bool twoPlayer = FALSE;
+
 
 
 
@@ -25,7 +35,7 @@ public:
 
 	int connect();
 	int connect(wchar_t *COM17);
-	//int connect (char *deviceName, int baudRate, SerialParity parity);
+
 	void disconnect(void);
 
 	int sendArray(unsigned char *buffer, int len);
@@ -33,6 +43,7 @@ public:
 
 	void clear();
 };
+
 
 SerialPort::SerialPort() {
 	serialPortHandle = INVALID_HANDLE_VALUE;
@@ -43,13 +54,18 @@ SerialPort::~SerialPort() {
 		CloseHandle(serialPortHandle);
 
 	serialPortHandle = INVALID_HANDLE_VALUE;
+
+	if (serialPortHandle != INVALID_HANDLE_VALUE)
+		CloseHandle(serialPortHandle);
+
+	serialPortHandle = INVALID_HANDLE_VALUE;
 }
 
 int SerialPort::connect() {
 	return connect(L"COM17");
 }
 
-int SerialPort::connect(wchar_t* device) {
+int SerialPort::connect(wchar_t* device1) {
 	int error = 0;
 	DCB dcb;
 
@@ -62,7 +78,7 @@ int SerialPort::connect(wchar_t* device) {
 	dcb.StopBits = ONESTOPBIT;
 	dcb.ByteSize = 8;
 
-	serialPortHandle = CreateFile(device, GENERIC_READ | GENERIC_WRITE, 0, NULL, OPEN_EXISTING, NULL, NULL);
+	serialPortHandle = CreateFile(device1, GENERIC_READ | GENERIC_WRITE, 0, NULL, OPEN_EXISTING, NULL, NULL);
 
 	if (serialPortHandle != INVALID_HANDLE_VALUE) {
 		if (!SetCommState(serialPortHandle, &dcb)) {
@@ -83,14 +99,24 @@ int SerialPort::connect(wchar_t* device) {
 	return error;
 }
 
+
+//int SerialPort::connect2() {	//neu
+//	return connect(L"COM21"); //neu
+//}							  //neu
+
+
+
 void SerialPort::disconnect(void) {
 	CloseHandle(serialPortHandle);
 	serialPortHandle = INVALID_HANDLE_VALUE;
 	//printf("Port 1 has been CLOSED and %d is the file descriptionn", fileDescriptor);
+
+	CloseHandle(serialPortHandle);		//neu
+	serialPortHandle = INVALID_HANDLE_VALUE; //neu
 }
 
 int SerialPort::sendArray(unsigned char *buffer, int len) {
-	unsigned long result;
+	unsigned long result = 0;
 
 	if (serialPortHandle != INVALID_HANDLE_VALUE)
 		WriteFile(serialPortHandle, buffer, len, &result, NULL);
@@ -112,12 +138,11 @@ int SerialPort::getArray(unsigned char *buffer, int len) {
 
 void SerialPort::clear() {
 	PurgeComm(serialPortHandle, PURGE_RXCLEAR | PURGE_TXCLEAR);
+	PurgeComm(serialPortHandle, PURGE_RXCLEAR | PURGE_TXCLEAR);	//neu
 }
 
-
-
 SerialPort port1;
-//SerialPort port2;
+SerialPort port2; //neu
 
 
 /// <summary>
@@ -131,12 +156,11 @@ SerialPort port1;
 int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdLine, int nCmdShow)
 {
 	port1.connect(L"\\\\.\\COM17");
-	// port2.connect(L"\\\\.\\COM20");
+	port2.connect(L"\\\\.\\COM21");
 
 	CSkeletonBasics application;
     application.Run(hInstance, nCmdShow);
 }
-
 
 
 /// <summary>
@@ -276,6 +300,7 @@ void CSkeletonBasics::Update()
 /// <param name="wParam">message data</param>
 /// <param name="lParam">additional message data</param>
 /// <returns>result of message processing</returns>
+/// <returns>result2 of message processing</returns>	//neu
 LRESULT CALLBACK CSkeletonBasics::MessageRouter(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 {
     CSkeletonBasics* pThis = NULL;
@@ -306,6 +331,7 @@ LRESULT CALLBACK CSkeletonBasics::MessageRouter(HWND hWnd, UINT uMsg, WPARAM wPa
 /// <param name="wParam">message data</param>
 /// <param name="lParam">additional message data</param>
 /// <returns>result of message processing</returns>
+/// <returns>result2 of message processing</returns>	//neu
 LRESULT CALLBACK CSkeletonBasics::DlgProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 {
     switch (message)
@@ -400,7 +426,7 @@ HRESULT CSkeletonBasics::CreateFirstConnected()
             m_hNextSkeletonEvent = CreateEventW(NULL, TRUE, FALSE, NULL);
 
             // Open a skeleton stream to receive skeleton data
-            hr = m_pNuiSensor->NuiSkeletonTrackingEnable(m_hNextSkeletonEvent, 0); 
+            hr = m_pNuiSensor->NuiSkeletonTrackingEnable(m_hNextSkeletonEvent, 0);
         }
     }
 
@@ -416,6 +442,8 @@ HRESULT CSkeletonBasics::CreateFirstConnected()
 /// <summary>
 /// Handle new skeleton data
 /// </summary>
+
+
 void CSkeletonBasics::ProcessSkeleton()
 {
     NUI_SKELETON_FRAME skeletonFrame = {0};
@@ -425,6 +453,7 @@ void CSkeletonBasics::ProcessSkeleton()
     {
         return;
     }
+
 
     // smooth out the skeleton data
     m_pNuiSensor->NuiTransformSmooth(&skeletonFrame, NULL);
@@ -444,162 +473,153 @@ void CSkeletonBasics::ProcessSkeleton()
     int width = rct.right;
     int height = rct.bottom;
 
-    for (int i = 0 ; i < NUI_SKELETON_COUNT; ++i)
-    {
-        NUI_SKELETON_TRACKING_STATE trackingState = skeletonFrame.SkeletonData[i].eTrackingState;
-
-        if (NUI_SKELETON_TRACKED == trackingState)
-        {
-            // We're tracking the skeleton, draw it
-            DrawSkeleton(skeletonFrame.SkeletonData[i], width, height);
-			
-			// Write commands into keyboard buffer depending on gesture
-			if ((skeletonFrame.SkeletonData[i].SkeletonPositions[NUI_SKELETON_POSITION_HAND_RIGHT].y > skeletonFrame.SkeletonData[i].SkeletonPositions[NUI_SKELETON_POSITION_SHOULDER_RIGHT].y) &&
-				(skeletonFrame.SkeletonData[i].SkeletonPositions[NUI_SKELETON_POSITION_HAND_LEFT].y < skeletonFrame.SkeletonData[i].SkeletonPositions[NUI_SKELETON_POSITION_SHOULDER_LEFT].y))
-			{
-				SetStatusMessage(L"rechte Hand ist oben");
-				// Write "D" in keyboard buffer
-				//keybd_event(0x44, 0x20, 0, 0); //1. Ascii Tabelle 2. Scan Code
-
-				unsigned char berndmessage[] = "d";
-				port1.sendArray(berndmessage, 1);
-			}
-
-			if ((skeletonFrame.SkeletonData[i].SkeletonPositions[NUI_SKELETON_POSITION_HAND_LEFT].y > skeletonFrame.SkeletonData[i].SkeletonPositions[NUI_SKELETON_POSITION_SHOULDER_LEFT].y) &&
-				(skeletonFrame.SkeletonData[i].SkeletonPositions[NUI_SKELETON_POSITION_HAND_RIGHT].y < skeletonFrame.SkeletonData[i].SkeletonPositions[NUI_SKELETON_POSITION_SHOULDER_RIGHT].y))
-			{
-				// Write "A" in keyboard buffer
-				SetStatusMessage(L"linke Hand ist oben");
-				// keybd_event(0x41, 0x1E, 0, 0);
-
-				unsigned char berndmessage[] = "a";
-				port1.sendArray(berndmessage, 1);
-
-			}
-
-			if ((skeletonFrame.SkeletonData[i].SkeletonPositions[NUI_SKELETON_POSITION_HAND_LEFT].y > skeletonFrame.SkeletonData[i].SkeletonPositions[NUI_SKELETON_POSITION_SHOULDER_LEFT].y) &&
-				(skeletonFrame.SkeletonData[i].SkeletonPositions[NUI_SKELETON_POSITION_HAND_RIGHT].y > skeletonFrame.SkeletonData[i].SkeletonPositions[NUI_SKELETON_POSITION_SHOULDER_RIGHT].y))
-			{
-				// Write "W" in keyboard buffer
-				SetStatusMessage(L"beide Hände sind oben");
-				//putchar('w');
-				//keybd_event( 0x77, 0, KEYEVENTF_EXTENDEDKEY | 0,0 ); --> gibt immerhin die keys aus
-				//keybd_event(0x57, 0x11, 0, 0 ); //Fährt!!
-
-				unsigned char berndmessage[] = "w";
-				port1.sendArray(berndmessage, 1);
-			}
-
-			if ((skeletonFrame.SkeletonData[i].SkeletonPositions[NUI_SKELETON_POSITION_HAND_LEFT].y < skeletonFrame.SkeletonData[i].SkeletonPositions[NUI_SKELETON_POSITION_KNEE_LEFT].y) &&
-				(skeletonFrame.SkeletonData[i].SkeletonPositions[NUI_SKELETON_POSITION_HAND_RIGHT].y < skeletonFrame.SkeletonData[i].SkeletonPositions[NUI_SKELETON_POSITION_KNEE_RIGHT].y))
-			{
-				// Write "S" in keyboard buffer
-				SetStatusMessage(L"beide Hände unterhalb der Knie");
-				//keybd_event(0x53, 0x1F, 0, 0);
-
-				unsigned char berndmessage[] = "s";
-				port1.sendArray(berndmessage, 1);
-			}
-
-			if ((skeletonFrame.SkeletonData[i].SkeletonPositions[NUI_SKELETON_POSITION_HAND_LEFT].y > skeletonFrame.SkeletonData[i].SkeletonPositions[NUI_SKELETON_POSITION_KNEE_LEFT].y) &&
-				(skeletonFrame.SkeletonData[i].SkeletonPositions[NUI_SKELETON_POSITION_HAND_RIGHT].y > skeletonFrame.SkeletonData[i].SkeletonPositions[NUI_SKELETON_POSITION_KNEE_RIGHT].y) &&
-				(skeletonFrame.SkeletonData[i].SkeletonPositions[NUI_SKELETON_POSITION_HAND_LEFT].y < skeletonFrame.SkeletonData[i].SkeletonPositions[NUI_SKELETON_POSITION_SHOULDER_LEFT].y) &&
-				(skeletonFrame.SkeletonData[i].SkeletonPositions[NUI_SKELETON_POSITION_HAND_RIGHT].y < skeletonFrame.SkeletonData[i].SkeletonPositions[NUI_SKELETON_POSITION_SHOULDER_RIGHT].y))
-			{
-				// Write "P" in keyboard buffer
-				SetStatusMessage(L"beide Hände sind unten");
-				//keybd_event(0x4F, 0x18, 0, 0);
-
-				unsigned char berndmessage[] = "p";
-				port1.sendArray(berndmessage, 1);
-			}
-
-        }
-        else if (NUI_SKELETON_POSITION_ONLY == trackingState)
-        {
-            // we've only received the center point of the skeleton, draw that
-            D2D1_ELLIPSE ellipse = D2D1::Ellipse(
-                SkeletonToScreen(skeletonFrame.SkeletonData[i].Position, width, height),
-                g_JointThickness,
-                g_JointThickness
-                );
-
-            m_pRenderTarget->DrawEllipse(ellipse, m_pBrushJointTracked);
-        }
-    }
-
-
-
-	/*
-	// ---> ANFANG zweite Person
-	for (int j = 0; j < NUI_SKELETON_COUNT; ++j)
+	for (int i = 0; i < NUI_SKELETON_COUNT; ++i)
 	{
-		NUI_SKELETON_TRACKING_STATE trackingState = skeletonFrame.SkeletonData[j].eTrackingState;
+		NUI_SKELETON_TRACKING_STATE trackingState = skeletonFrame.SkeletonData[i].eTrackingState;
 
 		if (NUI_SKELETON_TRACKED == trackingState)
 		{
+			int array[2] = { skeletonFrame.SkeletonData[i].dwTrackingID ,skeletonFrame.SkeletonData[i].dwTrackingID };
+
+			
+
+			if ((skeletonFrame.SkeletonData[i].dwTrackingID != player1) && (skeletonFrame.SkeletonData[i].dwTrackingID != player2)) {
+			
+
+				if (keksdose == 1) {
+					player1 = array[0];
+					WCHAR trackingIdForDebugging1[10];
+					swprintf_s(trackingIdForDebugging1, 10, L"%d\n", player1);
+					OutputDebugString(trackingIdForDebugging1);
+					keksdose = 2;
+					twoPlayer =FALSE;
+					break;
+				}
+				else if (keksdose == 2) {
+
+					player2 = array[1];
+					WCHAR trackingIdForDebugging2[10];
+					swprintf_s(trackingIdForDebugging2, 10, L"%d\n", player2);
+					OutputDebugString(trackingIdForDebugging2);
+					keksdose = 1;
+					twoPlayer = TRUE;
+					int array[2] = { player1, player2 };
+					break;
+				}
+				twoPlayer = FALSE;
+				
+			}
+
+			if ((skeletonFrame.SkeletonData[i].dwTrackingID != player1) && (skeletonFrame.SkeletonData[i].dwTrackingID == player2)) {
+				array[0]= skeletonFrame.SkeletonData[i].dwTrackingID;
+			}
+			else if ((skeletonFrame.SkeletonData[i].dwTrackingID == player1) && (skeletonFrame.SkeletonData[i].dwTrackingID != player2)) {
+				array[1] = skeletonFrame.SkeletonData[i].dwTrackingID;
+			}
+			//continue;
+
 			// We're tracking the skeleton, draw it
-			DrawSkeleton(skeletonFrame.SkeletonData[j], width, height);
+			DrawSkeleton(skeletonFrame.SkeletonData[i], width, height);
 
-			// Write commands into keyboard buffer depending on gesture
-			if ((skeletonFrame.SkeletonData[j].SkeletonPositions[NUI_SKELETON_POSITION_HAND_RIGHT].y > skeletonFrame.SkeletonData[j].SkeletonPositions[NUI_SKELETON_POSITION_SHOULDER_RIGHT].y) &&
-				(skeletonFrame.SkeletonData[j].SkeletonPositions[NUI_SKELETON_POSITION_HAND_LEFT].y < skeletonFrame.SkeletonData[j].SkeletonPositions[NUI_SKELETON_POSITION_SHOULDER_LEFT].y))
-			{
-				SetStatusMessage(L"zweite Person: rechte Hand ist oben");
-				// Write "K" in keyboard buffer
-				keybd_event(0x4B, 0x25, 0, 0); //1. Ascii Tabelle 2. Scan Code
+			if (twoPlayer == TRUE) {
+
+				// Write commands into keyboard buffer depending on gesture
+				if ((skeletonFrame.SkeletonData[i].SkeletonPositions[NUI_SKELETON_POSITION_HAND_RIGHT].y > skeletonFrame.SkeletonData[i].SkeletonPositions[NUI_SKELETON_POSITION_SHOULDER_RIGHT].y) &&
+					(skeletonFrame.SkeletonData[i].SkeletonPositions[NUI_SKELETON_POSITION_HAND_LEFT].y < skeletonFrame.SkeletonData[i].SkeletonPositions[NUI_SKELETON_POSITION_SHOULDER_LEFT].y))
+				{
+					SetStatusMessage(L"rechte Hand ist oben");
+					// Write "d" in keyboard buffer
+					unsigned char berndmessage[] = "d";
+					if (player1 == skeletonFrame.SkeletonData[i].dwTrackingID)
+					{
+						port1.sendArray(berndmessage, 1);
+					}
+					else if (player2 == skeletonFrame.SkeletonData[i].dwTrackingID)
+					{
+						port2.sendArray(berndmessage, 1);
+					}
+				}
+
+				if ((skeletonFrame.SkeletonData[i].SkeletonPositions[NUI_SKELETON_POSITION_HAND_LEFT].y > skeletonFrame.SkeletonData[i].SkeletonPositions[NUI_SKELETON_POSITION_SHOULDER_LEFT].y) &&
+					(skeletonFrame.SkeletonData[i].SkeletonPositions[NUI_SKELETON_POSITION_HAND_RIGHT].y < skeletonFrame.SkeletonData[i].SkeletonPositions[NUI_SKELETON_POSITION_SHOULDER_RIGHT].y))
+				{
+					// Write "a" in keyboard buffer
+					SetStatusMessage(L"linke Hand ist oben");
+					unsigned char berndmessage[] = "a";
+					if (player1 == skeletonFrame.SkeletonData[i].dwTrackingID)
+					{
+						port1.sendArray(berndmessage, 1);
+					}
+					else if (player2 == skeletonFrame.SkeletonData[i].dwTrackingID)
+					{
+						port2.sendArray(berndmessage, 1);
+					}
+				}
+
+				if ((skeletonFrame.SkeletonData[i].SkeletonPositions[NUI_SKELETON_POSITION_HAND_LEFT].y > skeletonFrame.SkeletonData[i].SkeletonPositions[NUI_SKELETON_POSITION_SHOULDER_LEFT].y) &&
+					(skeletonFrame.SkeletonData[i].SkeletonPositions[NUI_SKELETON_POSITION_HAND_RIGHT].y > skeletonFrame.SkeletonData[i].SkeletonPositions[NUI_SKELETON_POSITION_SHOULDER_RIGHT].y))
+				{
+					// Write "w" in keyboard buffer
+					SetStatusMessage(L"beide Hände sind oben");
+					unsigned char berndmessage[] = "w";
+					if (player1 == skeletonFrame.SkeletonData[i].dwTrackingID)
+					{
+						port1.sendArray(berndmessage, 1);
+					}
+					else if (player2 == skeletonFrame.SkeletonData[i].dwTrackingID)
+					{
+						port2.sendArray(berndmessage, 1);
+					}
+				}
+
+				if ((skeletonFrame.SkeletonData[i].SkeletonPositions[NUI_SKELETON_POSITION_HAND_LEFT].y < skeletonFrame.SkeletonData[i].SkeletonPositions[NUI_SKELETON_POSITION_KNEE_LEFT].y) &&
+					(skeletonFrame.SkeletonData[i].SkeletonPositions[NUI_SKELETON_POSITION_HAND_RIGHT].y < skeletonFrame.SkeletonData[i].SkeletonPositions[NUI_SKELETON_POSITION_KNEE_RIGHT].y))
+				{
+					// Write "s" in keyboard buffer
+					SetStatusMessage(L"beide Hände unterhalb der Knie");
+					unsigned char berndmessage[] = "s";
+					if (player1 == skeletonFrame.SkeletonData[i].dwTrackingID)
+					{
+						port1.sendArray(berndmessage, 1);
+					}
+					else if (player2 == skeletonFrame.SkeletonData[i].dwTrackingID)
+					{
+						port2.sendArray(berndmessage, 1);
+					}
+				}
+
+				if ((skeletonFrame.SkeletonData[i].SkeletonPositions[NUI_SKELETON_POSITION_HAND_LEFT].y > skeletonFrame.SkeletonData[i].SkeletonPositions[NUI_SKELETON_POSITION_KNEE_LEFT].y) &&
+					(skeletonFrame.SkeletonData[i].SkeletonPositions[NUI_SKELETON_POSITION_HAND_RIGHT].y > skeletonFrame.SkeletonData[i].SkeletonPositions[NUI_SKELETON_POSITION_KNEE_RIGHT].y) &&
+					(skeletonFrame.SkeletonData[i].SkeletonPositions[NUI_SKELETON_POSITION_HAND_LEFT].y < skeletonFrame.SkeletonData[i].SkeletonPositions[NUI_SKELETON_POSITION_SHOULDER_LEFT].y) &&
+					(skeletonFrame.SkeletonData[i].SkeletonPositions[NUI_SKELETON_POSITION_HAND_RIGHT].y < skeletonFrame.SkeletonData[i].SkeletonPositions[NUI_SKELETON_POSITION_SHOULDER_RIGHT].y))
+				{
+					// Write "P" in keyboard buffer
+					SetStatusMessage(L"beide Hände sind unten");
+					unsigned char berndmessage[] = "p";
+					if (player1 == skeletonFrame.SkeletonData[i].dwTrackingID)
+					{
+						port1.sendArray(berndmessage, 1);
+					}
+					else if (player2 == skeletonFrame.SkeletonData[i].dwTrackingID)
+					{
+						port2.sendArray(berndmessage, 1);
+					}
+				}
 			}
 
-			if ((skeletonFrame.SkeletonData[j].SkeletonPositions[NUI_SKELETON_POSITION_HAND_LEFT].y > skeletonFrame.SkeletonData[j].SkeletonPositions[NUI_SKELETON_POSITION_SHOULDER_LEFT].y) &&
-				(skeletonFrame.SkeletonData[j].SkeletonPositions[NUI_SKELETON_POSITION_HAND_RIGHT].y < skeletonFrame.SkeletonData[j].SkeletonPositions[NUI_SKELETON_POSITION_SHOULDER_RIGHT].y))
+			else if (NUI_SKELETON_POSITION_ONLY == trackingState)
 			{
-				// Write "H" in keyboard buffer
-				SetStatusMessage(L"zweite Person: linke Hand ist oben");
-				keybd_event(0x48, 0x23, 0, 0);
+				// we've only received the center point of the skeleton, draw that
+				D2D1_ELLIPSE ellipse = D2D1::Ellipse(
+					SkeletonToScreen(skeletonFrame.SkeletonData[i].Position, width, height),
+					g_JointThickness,
+					g_JointThickness
+					);
+
+				m_pRenderTarget->DrawEllipse(ellipse, m_pBrushJointTracked);
 			}
-
-			if ((skeletonFrame.SkeletonData[j].SkeletonPositions[NUI_SKELETON_POSITION_HAND_LEFT].y > skeletonFrame.SkeletonData[j].SkeletonPositions[NUI_SKELETON_POSITION_SHOULDER_LEFT].y) &&
-				(skeletonFrame.SkeletonData[j].SkeletonPositions[NUI_SKELETON_POSITION_HAND_RIGHT].y > skeletonFrame.SkeletonData[j].SkeletonPositions[NUI_SKELETON_POSITION_SHOULDER_RIGHT].y))
-			{
-				// Write "U" in keyboard buffer
-				SetStatusMessage(L"zweite Person: beide Hände sind oben");
-				keybd_event(0x55, 0x16, 0, 0); //Fährt!!
-			}
-
-			if ((skeletonFrame.SkeletonData[j].SkeletonPositions[NUI_SKELETON_POSITION_HAND_LEFT].y < skeletonFrame.SkeletonData[j].SkeletonPositions[NUI_SKELETON_POSITION_KNEE_LEFT].y) &&
-				(skeletonFrame.SkeletonData[j].SkeletonPositions[NUI_SKELETON_POSITION_HAND_RIGHT].y < skeletonFrame.SkeletonData[j].SkeletonPositions[NUI_SKELETON_POSITION_KNEE_RIGHT].y))
-			{
-				// Write "J" in keyboard buffer
-				SetStatusMessage(L"zweite Person: beide Hände unterhalb der Knie");
-				keybd_event(0x4A, 0x24, 0, 0);
-			}
-
-			if ((skeletonFrame.SkeletonData[j].SkeletonPositions[NUI_SKELETON_POSITION_HAND_LEFT].y > skeletonFrame.SkeletonData[j].SkeletonPositions[NUI_SKELETON_POSITION_KNEE_LEFT].y) &&
-				(skeletonFrame.SkeletonData[j].SkeletonPositions[NUI_SKELETON_POSITION_HAND_RIGHT].y > skeletonFrame.SkeletonData[j].SkeletonPositions[NUI_SKELETON_POSITION_KNEE_RIGHT].y) &&
-				(skeletonFrame.SkeletonData[j].SkeletonPositions[NUI_SKELETON_POSITION_HAND_LEFT].y < skeletonFrame.SkeletonData[j].SkeletonPositions[NUI_SKELETON_POSITION_SHOULDER_LEFT].y) &&
-				(skeletonFrame.SkeletonData[j].SkeletonPositions[NUI_SKELETON_POSITION_HAND_RIGHT].y < skeletonFrame.SkeletonData[j].SkeletonPositions[NUI_SKELETON_POSITION_SHOULDER_RIGHT].y))
-			{
-				// Write "P" in keyboard buffer
-				SetStatusMessage(L"zweite Person: beide Hände sind unten");
-				keybd_event(0x50, 0x19, 0, 0);
-			}
-
-		}
-		else if (NUI_SKELETON_POSITION_ONLY == trackingState)
-		{
-			// we've only received the center point of the skeleton, draw that
-			D2D1_ELLIPSE ellipse = D2D1::Ellipse(
-				SkeletonToScreen(skeletonFrame.SkeletonData[j].Position, width, height),
-				g_JointThickness,
-				g_JointThickness
-				);
-
-			m_pRenderTarget->DrawEllipse(ellipse, m_pBrushJointTracked);
 		}
 	}
-	// --> ENDE zweite Person
-	*/
-
 
 
     hr = m_pRenderTarget->EndDraw();

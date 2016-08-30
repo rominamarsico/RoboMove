@@ -8,10 +8,12 @@
 #include <strsafe.h>
 #include "SkeletonBasics.h"
 #include "resource.h"
-#include <NuiSensor.h>	//neu
-#include <NuiApi.h>	//neu
-#include <NuiSkeleton.h> //neu
-#include <NuiImageCamera.h> //neu
+
+#include <NuiSensor.h>
+#include <NuiApi.h>
+#include <NuiSkeleton.h>
+#include <NuiImageCamera.h>
+
 
 static const float g_JointThickness = 3.0f;
 static const float g_TrackedBoneThickness = 6.0f;
@@ -19,10 +21,6 @@ static const float g_InferredBoneThickness = 1.0f;
 
 int player1;
 int player2;
-int keksdose = 1;
-bool twoPlayer = FALSE;
-
-
 
 
 class SerialPort {
@@ -103,7 +101,6 @@ int SerialPort::connect(wchar_t* device1) {
 //int SerialPort::connect2() {	//neu
 //	return connect(L"COM21"); //neu
 //}							  //neu
-
 
 
 void SerialPort::disconnect(void) {
@@ -472,6 +469,8 @@ void CSkeletonBasics::ProcessSkeleton()
     GetClientRect( GetDlgItem( m_hWnd, IDC_VIDEOVIEW ), &rct);
     int width = rct.right;
     int height = rct.bottom;
+	bool player1Present = false;
+	bool player2Present = false;
 
 	for (int i = 0; i < NUI_SKELETON_COUNT; ++i)
 	{
@@ -479,49 +478,52 @@ void CSkeletonBasics::ProcessSkeleton()
 
 		if (NUI_SKELETON_TRACKED == trackingState)
 		{
-			int array[2] = { skeletonFrame.SkeletonData[i].dwTrackingID ,skeletonFrame.SkeletonData[i].dwTrackingID };
-
-			
-
-			if ((skeletonFrame.SkeletonData[i].dwTrackingID != player1) && (skeletonFrame.SkeletonData[i].dwTrackingID != player2)) {
-			
-
-				if (keksdose == 1) {
-					player1 = array[0];
-					WCHAR trackingIdForDebugging1[10];
-					swprintf_s(trackingIdForDebugging1, 10, L"%d\n", player1);
-					OutputDebugString(trackingIdForDebugging1);
-					keksdose = 2;
-					twoPlayer =FALSE;
-					break;
-				}
-				else if (keksdose == 2) {
-
-					player2 = array[1];
-					WCHAR trackingIdForDebugging2[10];
-					swprintf_s(trackingIdForDebugging2, 10, L"%d\n", player2);
-					OutputDebugString(trackingIdForDebugging2);
-					keksdose = 1;
-					twoPlayer = TRUE;
-					int array[2] = { player1, player2 };
-					break;
-				}
-				twoPlayer = FALSE;
-				
+			//if ((skeletonFrame.SkeletonData[i].dwTrackingID != player1) && (skeletonFrame.SkeletonData[i].dwTrackingID != player2)) {
+			if (player1 == skeletonFrame.SkeletonData[i].dwTrackingID) {
+				player1Present = true;
 			}
+			if (player2 == skeletonFrame.SkeletonData[i].dwTrackingID) {
+				player2Present = true;
+			}
+		}
+	}
 
-			if ((skeletonFrame.SkeletonData[i].dwTrackingID != player1) && (skeletonFrame.SkeletonData[i].dwTrackingID == player2)) {
-				array[0]= skeletonFrame.SkeletonData[i].dwTrackingID;
+
+	for (int i = 0; i < NUI_SKELETON_COUNT; ++i)
+	{
+		NUI_SKELETON_TRACKING_STATE trackingState = skeletonFrame.SkeletonData[i].eTrackingState;
+
+		if (NUI_SKELETON_TRACKED == trackingState)
+		{
+			if (!player1Present && skeletonFrame.SkeletonData[i].dwTrackingID != player2) {
+				player1 = skeletonFrame.SkeletonData[i].dwTrackingID;
+				WCHAR trackingIdForDebugging1[10];
+				swprintf_s(trackingIdForDebugging1, 10, L"A %d\t", player1);
+				OutputDebugString(trackingIdForDebugging1);
 			}
-			else if ((skeletonFrame.SkeletonData[i].dwTrackingID == player1) && (skeletonFrame.SkeletonData[i].dwTrackingID != player2)) {
-				array[1] = skeletonFrame.SkeletonData[i].dwTrackingID;
+			else if (!player2Present && skeletonFrame.SkeletonData[i].dwTrackingID != player1) {
+				player2 = skeletonFrame.SkeletonData[i].dwTrackingID;
+				WCHAR trackingIdForDebugging2[10];
+				swprintf_s(trackingIdForDebugging2, 10, L"B %d\t", player2);
+				OutputDebugString(trackingIdForDebugging2);
 			}
-			//continue;
+		}
+	}
+
+	OutputDebugString(L".\n");
+
+
+	for (int i = 0; i < NUI_SKELETON_COUNT; ++i)
+	{
+		NUI_SKELETON_TRACKING_STATE trackingState = skeletonFrame.SkeletonData[i].eTrackingState;
+
+		if (NUI_SKELETON_TRACKED == trackingState)
+		{
 
 			// We're tracking the skeleton, draw it
 			DrawSkeleton(skeletonFrame.SkeletonData[i], width, height);
 
-			if (twoPlayer == TRUE) {
+			//if (twoPlayer == TRUE) {
 
 				// Write commands into keyboard buffer depending on gesture
 				if ((skeletonFrame.SkeletonData[i].SkeletonPositions[NUI_SKELETON_POSITION_HAND_RIGHT].y > skeletonFrame.SkeletonData[i].SkeletonPositions[NUI_SKELETON_POSITION_SHOULDER_RIGHT].y) &&
@@ -605,7 +607,7 @@ void CSkeletonBasics::ProcessSkeleton()
 						port2.sendArray(berndmessage, 1);
 					}
 				}
-			}
+			//}
 
 			else if (NUI_SKELETON_POSITION_ONLY == trackingState)
 			{

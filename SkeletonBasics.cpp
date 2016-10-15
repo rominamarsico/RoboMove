@@ -3,6 +3,7 @@
 //     Copyright (c) Microsoft Corporation.  All rights reserved.
 // </copyright>
 //------------------------------------------------------------------------------
+//Project by Romina Marsico, Isabel Gaubatz, Simone Haas
 
 #include "stdafx.h"
 #include <strsafe.h>
@@ -14,6 +15,10 @@
 #include <NuiSkeleton.h>
 #include <NuiImageCamera.h>
 
+#include <Windows.h> //um die .ini Datei auszulesen
+#include <string>
+#include <iostream>
+using namespace std;
 
 static const float g_JointThickness = 3.0f;
 static const float g_TrackedBoneThickness = 6.0f;
@@ -22,6 +27,31 @@ static const float g_InferredBoneThickness = 1.0f;
 int player1;
 int player2;
 
+int portNumber1;
+int portNumber2;
+
+void getComPorts() {
+	//const unsigned long puffer_size = 255;
+	//wchar_t puffer[puffer_size] = {};
+
+	//comPort1 = GetPrivateProfileStringW(L"COM Ports", L"COM1", 0, puffer, puffer_size, L".\\selectComPorts.ini");
+	portNumber1 = GetPrivateProfileInt(L"COM Ports", L"COM1", 0, L".\\selectComPorts.ini");
+	portNumber2 = GetPrivateProfileInt(L"COM Ports", L"COM2", 0, L".\\selectComPorts.ini");
+	
+	string com = "COM";		//das wort "COM" speichern
+
+	std::string port1 = std::to_string(portNumber1);	//portNumber1 von int nach string umwandeln
+
+	string CP = com+port1;	//Wort und Zahl zusammen hängen
+
+	WCHAR aaa[10];
+	swprintf_s(aaa, 10, L"%d\n", com);	//Wert auslesen
+	OutputDebugString(aaa);
+
+	WCHAR bbb[10];
+	swprintf_s(bbb, 10, L"%d\n", portNumber2);
+	OutputDebugString(bbb);
+}
 
 class SerialPort {
 private:
@@ -32,7 +62,7 @@ public:
 	~SerialPort();
 
 	int connect();
-	int connect(wchar_t *COM17);
+	int connect(wchar_t *device);
 
 	void disconnect(void);
 
@@ -60,10 +90,10 @@ SerialPort::~SerialPort() {
 }
 
 int SerialPort::connect() {
-	return connect(L"COM17");
+	return connect(L"COM19");
 }
 
-int SerialPort::connect(wchar_t* device1) {
+int SerialPort::connect(wchar_t* device) {
 	int error = 0;
 	DCB dcb;
 
@@ -76,7 +106,7 @@ int SerialPort::connect(wchar_t* device1) {
 	dcb.StopBits = ONESTOPBIT;
 	dcb.ByteSize = 8;
 
-	serialPortHandle = CreateFile(device1, GENERIC_READ | GENERIC_WRITE, 0, NULL, OPEN_EXISTING, NULL, NULL);
+	serialPortHandle = CreateFile(device, GENERIC_READ | GENERIC_WRITE, 0, NULL, OPEN_EXISTING, NULL, NULL);
 
 	if (serialPortHandle != INVALID_HANDLE_VALUE) {
 		if (!SetCommState(serialPortHandle, &dcb)) {
@@ -98,9 +128,9 @@ int SerialPort::connect(wchar_t* device1) {
 }
 
 
-//int SerialPort::connect2() {	//neu
-//	return connect(L"COM21"); //neu
-//}							  //neu
+//int SerialPort::connect2() {	//new
+//	return connect(L"COM21"); //new
+//}							  //new
 
 
 void SerialPort::disconnect(void) {
@@ -108,8 +138,8 @@ void SerialPort::disconnect(void) {
 	serialPortHandle = INVALID_HANDLE_VALUE;
 	//printf("Port 1 has been CLOSED and %d is the file descriptionn", fileDescriptor);
 
-	CloseHandle(serialPortHandle);		//neu
-	serialPortHandle = INVALID_HANDLE_VALUE; //neu
+	CloseHandle(serialPortHandle);		//new
+	serialPortHandle = INVALID_HANDLE_VALUE; //new
 }
 
 int SerialPort::sendArray(unsigned char *buffer, int len) {
@@ -135,11 +165,11 @@ int SerialPort::getArray(unsigned char *buffer, int len) {
 
 void SerialPort::clear() {
 	PurgeComm(serialPortHandle, PURGE_RXCLEAR | PURGE_TXCLEAR);
-	PurgeComm(serialPortHandle, PURGE_RXCLEAR | PURGE_TXCLEAR);	//neu
+	PurgeComm(serialPortHandle, PURGE_RXCLEAR | PURGE_TXCLEAR);	//new
 }
 
 SerialPort port1;
-SerialPort port2; //neu
+SerialPort port2;
 
 
 /// <summary>
@@ -152,7 +182,9 @@ SerialPort port2; //neu
 /// <returns>status</returns>
 int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdLine, int nCmdShow)
 {
-	port1.connect(L"\\\\.\\COM17");
+	getComPorts();
+
+	port1.connect(L"\\\\.\\COM19");
 	port2.connect(L"\\\\.\\COM21");
 
 	CSkeletonBasics application;
@@ -297,7 +329,7 @@ void CSkeletonBasics::Update()
 /// <param name="wParam">message data</param>
 /// <param name="lParam">additional message data</param>
 /// <returns>result of message processing</returns>
-/// <returns>result2 of message processing</returns>	//neu
+/// <returns>result2 of message processing</returns>	//new
 LRESULT CALLBACK CSkeletonBasics::MessageRouter(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 {
     CSkeletonBasics* pThis = NULL;
@@ -328,7 +360,7 @@ LRESULT CALLBACK CSkeletonBasics::MessageRouter(HWND hWnd, UINT uMsg, WPARAM wPa
 /// <param name="wParam">message data</param>
 /// <param name="lParam">additional message data</param>
 /// <returns>result of message processing</returns>
-/// <returns>result2 of message processing</returns>	//neu
+/// <returns>result2 of message processing</returns>	//new
 LRESULT CALLBACK CSkeletonBasics::DlgProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 {
     switch (message)

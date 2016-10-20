@@ -27,40 +27,6 @@ static const float g_InferredBoneThickness = 1.0f;
 int player1;
 int player2;
 
-int portNumber1;
-int portNumber2;
-
-void getComPorts() {
-	//const unsigned long puffer_size = 255;
-	//wchar_t puffer[puffer_size] = {};
-
-	//comPort1 = GetPrivateProfileStringW(L"COM Ports", L"COM1", 0, puffer, puffer_size, L".\\selectComPorts.ini");
-	portNumber1 = GetPrivateProfileInt(L"COM Ports", L"COM1", 0, L".\\selectComPorts.ini");
-	portNumber2 = GetPrivateProfileInt(L"COM Ports", L"COM2", 0, L".\\selectComPorts.ini");
-	
-	char com[] = "COM";		//das wort "COM" als char speichern
-
-	std::string port1 = std::to_string(portNumber1);	//von int (portNumber1) nach string (port1) umwandeln
-
-	std::string stringPort1;	
-	{ 
-		char charPort1[10];	//char statt WCHAR
-		snprintf(charPort1, 10, "%c\n", port1);	//snprintf statt swprintf_s; %c statt %d
-		OutputDebugStringA(charPort1);	//ohne das A nach dem Funktionsnamen wird ein Fehler ausgegeben
-		stringPort1 = charPort1;	//string nach char umwandeln
-	};
-
-	string CP = com+port1;	//Wort und Zahl zusammen hängen... ?!
-
-	WCHAR aaa[10];
-	swprintf_s(aaa, 10, L"%d\n", portNumber1);
-	OutputDebugString(aaa);
-
-	WCHAR bbb[10];
-	swprintf_s(bbb, 10, L"%d\n", portNumber2);
-	OutputDebugString(bbb);
-}
-
 class SerialPort {
 private:
 	HANDLE serialPortHandle;
@@ -136,11 +102,6 @@ int SerialPort::connect(wchar_t* device) {
 }
 
 
-//int SerialPort::connect2() {	//new
-//	return connect(L"COM21"); //new
-//}							  //new
-
-
 void SerialPort::disconnect(void) {
 	CloseHandle(serialPortHandle);
 	serialPortHandle = INVALID_HANDLE_VALUE;
@@ -179,6 +140,33 @@ void SerialPort::clear() {
 SerialPort port1;
 SerialPort port2;
 
+void setComPorts() {
+	unsigned int portNumber1 = GetPrivateProfileInt(L"COM Ports", L"COM1", 0, L".\\selectComPorts.ini");
+	unsigned int portNumber2 = GetPrivateProfileInt(L"COM Ports", L"COM2", 0, L".\\selectComPorts.ini");
+
+	char cc[10];
+	_itoa_s(portNumber1, cc, 10);
+
+	char bb[30]="\\\\.\\COM";
+
+	strcat(bb, cc); //first = destination, second = source
+
+	char charPort1[30];
+	snprintf(charPort1, 30, "%s\n", bb);	// %s
+	OutputDebugStringA(charPort1);	//Ausgabe: \\.\COM19
+
+	port1.connect(bb);	// --> Fehlermeldung: Keine Instanz von Überladene Funktion "SerialPort::connect" stimmt mit der Argumentliste überein.
+	port2.connect(L"\\\\.\\COM21");
+
+	WCHAR aaa[10];
+	swprintf_s(aaa, 10, L"%d\n", portNumber1);
+	OutputDebugString(aaa);	//Ausgabe: 19
+
+	WCHAR bbb[10];
+	swprintf_s(bbb, 10, L"%d\n", portNumber2);
+	OutputDebugString(bbb);	//Ausgabe: 21
+}
+
 
 /// <summary>
 /// Entry point for the application
@@ -190,10 +178,10 @@ SerialPort port2;
 /// <returns>status</returns>
 int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdLine, int nCmdShow)
 {
-	getComPorts();
+	setComPorts();
 
-	port1.connect(L"\\\\.\\COM19");
-	port2.connect(L"\\\\.\\COM21");
+	//port1.connect(L"\\\\.\\COM19");
+	//port2.connect(L"\\\\.\\COM21");
 
 	CSkeletonBasics application;
     application.Run(hInstance, nCmdShow);

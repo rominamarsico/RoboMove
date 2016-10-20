@@ -38,14 +38,22 @@ void getComPorts() {
 	portNumber1 = GetPrivateProfileInt(L"COM Ports", L"COM1", 0, L".\\selectComPorts.ini");
 	portNumber2 = GetPrivateProfileInt(L"COM Ports", L"COM2", 0, L".\\selectComPorts.ini");
 	
-	string com = "COM";		//das wort "COM" speichern
+	char com[] = "COM";		//das wort "COM" als char speichern
 
-	std::string port1 = std::to_string(portNumber1);	//portNumber1 von int nach string umwandeln
+	std::string port1 = std::to_string(portNumber1);	//von int (portNumber1) nach string (port1) umwandeln
 
-	string CP = com+port1;	//Wort und Zahl zusammen hängen
+	std::string stringPort1;	
+	{ 
+		char charPort1[10];	//char statt WCHAR
+		snprintf(charPort1, 10, "%c\n", port1);	//snprintf statt swprintf_s; %c statt %d
+		OutputDebugStringA(charPort1);	//ohne das A nach dem Funktionsnamen wird ein Fehler ausgegeben
+		stringPort1 = charPort1;	//string nach char umwandeln
+	};
+
+	string CP = com+port1;	//Wort und Zahl zusammen hängen... ?!
 
 	WCHAR aaa[10];
-	swprintf_s(aaa, 10, L"%d\n", com);	//Wert auslesen
+	swprintf_s(aaa, 10, L"%d\n", portNumber1);
 	OutputDebugString(aaa);
 
 	WCHAR bbb[10];

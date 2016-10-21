@@ -15,7 +15,7 @@
 #include <NuiSkeleton.h>
 #include <NuiImageCamera.h>
 
-#include <Windows.h> //um die .ini Datei auszulesen
+#include <Windows.h> //to read out the .ini file
 #include <string>
 #include <iostream>
 using namespace std;
@@ -64,7 +64,7 @@ SerialPort::~SerialPort() {
 }
 
 int SerialPort::connect() {
-	return connect(L"COM19");
+	return connect(L"COM19");	//number is irrelevant right here
 }
 
 int SerialPort::connect(wchar_t* device) {
@@ -144,19 +144,25 @@ void setComPorts() {
 	unsigned int portNumber1 = GetPrivateProfileInt(L"COM Ports", L"COM1", 0, L".\\selectComPorts.ini");
 	unsigned int portNumber2 = GetPrivateProfileInt(L"COM Ports", L"COM2", 0, L".\\selectComPorts.ini");
 
-	char cc[10];
-	_itoa_s(portNumber1, cc, 10);
+	wchar_t id[10];
+	_itow_s(portNumber1, id, 10);
 
-	char bb[30]="\\\\.\\COM";
+	wchar_t id2[10];
+	_itow_s(portNumber2, id2, 10);
 
-	strcat(bb, cc); //first = destination, second = source
+	wchar_t comPort1[20] = L"\\\\.\\COM";
+	wchar_t comPort2[20] = L"\\\\.\\COM";
 
+	wcsncat_s(comPort1, id, 20); //first = destination, second = source
+	wcsncat_s(comPort2, id2, 20);
+
+	port1.connect(comPort1);
+	port2.connect(comPort2);
+
+	/*
 	char charPort1[30];
-	snprintf(charPort1, 30, "%s\n", bb);	// %s
-	OutputDebugStringA(charPort1);	//Ausgabe: \\.\COM19
-
-	port1.connect(bb);	// --> Fehlermeldung: Keine Instanz von Überladene Funktion "SerialPort::connect" stimmt mit der Argumentliste überein.
-	port2.connect(L"\\\\.\\COM21");
+	snprintf(charPort1, 30, "%s\n", comPort1);	// %s
+	OutputDebugStringA(charPort1);	//OutputDebugStringA
 
 	WCHAR aaa[10];
 	swprintf_s(aaa, 10, L"%d\n", portNumber1);
@@ -165,6 +171,7 @@ void setComPorts() {
 	WCHAR bbb[10];
 	swprintf_s(bbb, 10, L"%d\n", portNumber2);
 	OutputDebugString(bbb);	//Ausgabe: 21
+	*/
 }
 
 
@@ -179,9 +186,6 @@ void setComPorts() {
 int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdLine, int nCmdShow)
 {
 	setComPorts();
-
-	//port1.connect(L"\\\\.\\COM19");
-	//port2.connect(L"\\\\.\\COM21");
 
 	CSkeletonBasics application;
     application.Run(hInstance, nCmdShow);

@@ -21,6 +21,9 @@ int rightMotorSpeedAbsolut = 0;
 unsigned char data_packet[1];
 unsigned int packet_index=0;
 
+unsigned long HEARTBEAT_INTERVAL = 2000;
+unsigned long nextHeartbeatAt = 0;
+
 void setup()
 { 
   Serial.begin(baudRate);  
@@ -33,6 +36,7 @@ void setup()
 
 void loop()
 { 
+  heartbeat();
   if (Serial.available() > 0)  //checks if data has been sent from the computer
   {
     data_packet[packet_index] = Serial.read();  //reads the most recent byte
@@ -170,6 +174,18 @@ void process_packet()
     
     analogWrite(leftSpeedPin, motorSpeedAbsolut);
     analogWrite(rightSpeedPin, motorSpeedAbsolut);
+  }
+}
+
+void heartbeat() {
+  unsigned long now = millis();
+  if (now > nextHeartbeatAt) {
+    digitalWrite(13, HIGH);
+    Serial.print("# Bot connected. Uptime: ");
+    Serial.println(now);
+    nextHeartbeatAt = now + HEARTBEAT_INTERVAL;
+    delay(2);
+    digitalWrite(13, LOW);
   }
 }
 
